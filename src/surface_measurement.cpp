@@ -12,6 +12,7 @@
 #pragma GCC diagnostic pop
 
 using cv::cuda::GpuMat;
+using cv::UMat;
 
 namespace kinectfusion {
     namespace internal {
@@ -20,6 +21,11 @@ namespace kinectfusion {
             void compute_vertex_map(const GpuMat& depth_map, GpuMat& vertex_map, const float depth_cutoff,
                                     const CameraParameters cam_params);
             void compute_normal_map(const GpuMat& vertex_map, GpuMat& normal_map);
+        }
+        namespace opencl { // Forward declare OpenCL functions
+            void compute_vertex_map(const UMat& depth_map, UMat& vertex_map, const float depth_cutoff,
+                                    const CameraParameters cam_params);
+            void compute_normal_map(const UMat& vertex_map, UMat& normal_map);
         }
 
         FrameData surface_measurement(const cv::Mat_<float>& input_frame,
@@ -35,39 +41,38 @@ namespace kinectfusion {
                 const int width = camera_params.level(level).image_width;
                 const int height = camera_params.level(level).image_height;
 
-                data.depth_pyramid[level] = cv::cuda::createContinuous(height, width, CV_32FC1);
-                data.smoothed_depth_pyramid[level] = cv::cuda::createContinuous(height, width, CV_32FC1);
+                data.depth_pyramid[level] = cv::UMat(cv::Size(width, height), CV_32FC1);
+                data.smoothed_depth_pyramid[level] = cv::UMat(cv::Size(height, width), CV_32FC1);
 
-                data.color_pyramid[level] = cv::cuda::createContinuous(height, width, CV_8UC3);
+                data.color_pyramid[level] = cv::UMat(cv::Size(height, width), CV_8UC3);
 
-                data.vertex_pyramid[level] = cv::cuda::createContinuous(height, width, CV_32FC3);
-                data.normal_pyramid[level] = cv::cuda::createContinuous(height, width, CV_32FC3);
+                data.vertex_pyramid[level] = cv::UMat(cv::Size(height, width), CV_32FC3);
+                data.normal_pyramid[level] = cv::UMat(cv::Size(height, width), CV_32FC3);
             }
 
             // Start by uploading original frame to GPU
-            data.depth_pyramid[0].upload(input_frame);
+            data.depth_pyramid[0] = input_frame.getUMat(cv::ACCESS_READ, cv::USAGE_ALLOCATE_DEVICE_MEMORY);
 
             // Build pyramids and filter bilaterally on GPU
-            cv::cuda::Stream stream;
+            // cv::cuda::Stream stream;
             for (size_t level = 1; level < num_levels; ++level)
-                cv::cuda::pyrDown(data.depth_pyramid[level - 1], data.depth_pyramid[level], stream);
+                cv::pyrDown(data.depth_pyramid[level - 1], data.depth_pyramid[level]);
             for (size_t level = 0; level < num_levels; ++level) {
-                cv::cuda::bilateralFilter(data.depth_pyramid[level], // source
+                cv::bilateralFilter(data.depth_pyramid[level], // source
                                           data.smoothed_depth_pyramid[level], // destination
                                           kernel_size,
                                           color_sigma,
                                           spatial_sigma,
-                                          cv::BORDER_DEFAULT,
-                                          stream);
+                                          cv::BORDER_DEFAULT);
             }
-            stream.waitForCompletion();
+            // stream.waitForCompletion();
 
-            // Compute vertex and normal maps
-            for (size_t level = 0; level < num_levels; ++level) {
-                cuda::compute_vertex_map(data.smoothed_depth_pyramid[level], data.vertex_pyramid[level],
-                                         depth_cutoff, camera_params.level(level));
-                cuda::compute_normal_map(data.vertex_pyramid[level], data.normal_pyramid[level]);
-            }
+            // // Compute vertex and normal maps
+            // for (size_t level = 0; level < num_levels; ++level) {
+            //     cuda::compute_vertex_map(data.smoothed_depth_pyramid[level], data.vertex_pyramid[level],
+            //                              depth_cutoff, camera_params.level(level));
+            //     cuda::compute_normal_map(data.vertex_pyramid[level], data.normal_pyramid[level]);
+            // }
 
             return data;
         }

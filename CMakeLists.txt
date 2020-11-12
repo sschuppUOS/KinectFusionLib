@@ -19,6 +19,12 @@ IF (CUDA_FOUND)
     SET(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3;-std=c++11 -gencode arch=compute_75,code=sm_75)
 ENDIF ()
 
+find_package(OpenCL REQUIRED)
+if (OpenCL_FOUND)
+    include_directories( ${OPENCL_INCLUDE_DIR} )
+endif ()
+
+
 ## OpenCV
 # Optional: Set OpenCV_DIR if you want to use a custom version of OpenCV
 # SET("OpenCV_DIR" "/opt/opencv/usr/local/share/OpenCV")
@@ -42,8 +48,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Weffc++")
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 set(PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src)
 
-include_directories("${PROJECT_INCLUDE_DIR}" "${PROJECT_SOURCE_DIR}/cuda/include")
-file(GLOB KinectFusion_SRCS "${PROJECT_SOURCE_DIR}/cuda/*.cu" "${PROJECT_SOURCE_DIR}/*.cpp")
+include_directories("${PROJECT_INCLUDE_DIR}" "${PROJECT_SOURCE_DIR}/cuda/include" "${PROJECT_SOURCE_DIR}/opencl/include")
+file(GLOB KinectFusion_SRCS "${PROJECT_SOURCE_DIR}/cuda/*.cu" "${PROJECT_SOURCE_DIR}/*.cpp" "${PROJECT_SOURCE_DIR}/opencl/*.cpp")
 
 cuda_add_library(KinectFusion STATIC "${KinectFusion_SRCS}")
-target_link_libraries(KinectFusion "${OpenCV_LIBS}")
+target_link_libraries(KinectFusion ${OpenCV_LIBS} ${OPENCL_LIBRARIES})

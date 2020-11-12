@@ -6,6 +6,30 @@
 
 #include "data_types.h"
 
+
+#pragma GCC diagnostic ignored "-Weffc++"
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/ocl.hpp>
+#include <stdio.h>
+#include <stdlib.h>
+ 
+#ifdef __APPLE__ //Mac OSX has a different name for the header file
+#include <OpenCL/opencl.h>
+#else
+#define CL_HPP_ENABLE_EXCEPTIONS
+#define CL_HPP_MINIMUM_OPENCL_VERSION 120 // Need to set to 120 on CUDA 8
+#define CL_HPP_TARGET_OPENCL_VERSION 120 // Need to set to 120 on CUDA 8
+
+// hard cl2 depencency
+#include <CL/cl.hpp>
+
+#endif
+ 
+#include <sstream>
+
+#define MEM_SIZE (128)//suppose we have a vector with 128 elements
+#define MAX_SOURCE_SIZE (0x100000)
+
 namespace kinectfusion {
     /*
      *
@@ -58,13 +82,13 @@ namespace kinectfusion {
          * Extract a point cloud
          * @return A PointCloud representation (see description of PointCloud for more information on the data layout)
          */
-        PointCloud extract_pointcloud() const;
+        // PointCloud extract_pointcloud() const;
 
         /**
          * Extract a dense surface mesh
          * @return A SurfaceMesh representation (see description of SurfaceMesh for more information on the data layout)
          */
-        SurfaceMesh extract_mesh() const;
+        // SurfaceMesh extract_mesh() const;
 
     private:
         // Internal parameters, not to be changed after instantiation
@@ -135,12 +159,12 @@ namespace kinectfusion {
              * Step 3: SURFACE RECONSTRUCTION
              * Integration of surface measurements into a global volume
              */
-            void surface_reconstruction(const cv::cuda::GpuMat& depth_image,
-                                        const cv::cuda::GpuMat& color_image,
-                                        VolumeData& volume,
-                                        const CameraParameters& cam_params,
-                                        const float truncation_distance,
-                                        const Eigen::Matrix4f& model_view);
+            // void surface_reconstruction(const cv::cuda::GpuMat& depth_image,
+            //                             const cv::cuda::GpuMat& color_image,
+            //                             VolumeData& volume,
+            //                             const CameraParameters& cam_params,
+            //                             const float truncation_distance,
+            //                             const Eigen::Matrix4f& model_view);
 
 
             /*
@@ -160,6 +184,26 @@ namespace kinectfusion {
             SurfaceMesh marching_cubes(const VolumeData& volume, const int triangles_buffer_size);
         }
 
+        namespace opencl {
+
+            // void setDeviceInfo(cl::Platform platform, cl::Device device);
+            /*
+             * Step 3: SURFACE RECONSTRUCTION
+             * Integration of surface measurements into a global volume
+             */
+            void surface_reconstruction(const cv::UMat& depth_image,
+                                        const cv::UMat& color_image,
+                                        VolumeData& volume,
+                                        const CameraParameters& cam_params,
+                                        const float truncation_distance,
+                                        const Eigen::Matrix4f& model_view);
+
+            void compile_surface_reconstruction_kernel();
+
+            void surface_reconstruction_cleanup();
+        }
+        // extern cl::Platform m_platform;
+        // extern cl::Device m_device;
     }
 }
 #endif //KINECTFUSION_H

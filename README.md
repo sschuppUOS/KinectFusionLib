@@ -65,11 +65,11 @@ while ( !end ) {
 auto poses = pipeline.get_poses();
 
 // Export surface mesh
-auto mesh = pipeline.extract_mesh();
+// auto mesh = pipeline.extract_mesh();
 kinectfusion::export_ply("data/mesh.ply", mesh);
 
 // Export pointcloud
-auto pointcloud = pipeline.extract_pointcloud();
+// auto pointcloud = pipeline.extract_pointcloud();
 kinectfusion::export_ply("data/pointcloud.ply", pointcloud);
 ```
 For a more in-depth example and implementations of the data sources, have a look at the [KinectFusionApp](https://github.com/chrdiller/KinectFusionApp).

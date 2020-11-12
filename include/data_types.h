@@ -11,17 +11,27 @@
 #pragma GCC diagnostic ignored "-Wall"
 #pragma GCC diagnostic ignored "-Wextra"
 #pragma GCC diagnostic ignored "-Weffc++"
-#include <cuda_runtime.h>
-#include <opencv2/core/cuda.hpp>
+// #include <cuda_runtime.h>
+// #include <opencv2/core/cuda.hpp>
+#include <opencv2/core/mat.hpp>
 #include <Eigen/Eigen>
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/ocl.hpp>
+#include <CL/cl.hpp>
+#include <CL/cl.h>
 #pragma GCC diagnostic pop
 #else
-#include <cuda_runtime.h>
-#include <opencv2/core/cuda.hpp>
-#include <Eigen/Eigen>
+// #include <cuda_runtime.h>
+// #include <opencv2/core/cuda.hpp>
+// #include <Eigen/Eigen>
+// #include <opencv2/opencv.hpp>
+// #include <opencv2/core/ocl.hpp>
+// #include <CL/cl.hpp>
+// #include <CL/cl.h>
+// #include <opencv2/core/mat.hpp>
 #endif
 
-using cv::cuda::GpuMat;
+// using cv::cuda::GpuMat;
 
 namespace kinectfusion {
     /**
@@ -136,7 +146,7 @@ namespace kinectfusion {
     struct GlobalConfiguration {
         // The overall size of the volume (in mm). Will be allocated on the GPU and is thus limited by the amount of
         // storage you have available. Dimensions are (x, y, z).
-        int3 volume_size { make_int3(512, 512, 512) };
+        cl_int3 volume_size = (cl_int3)(512, 512, 512);
 
         // The amount of mm one single voxel will represent in each dimension. Controls the resolution of the volume.
         float voxel_scale { 2.f };
@@ -185,12 +195,12 @@ namespace kinectfusion {
          * Consists of depth, smoothed depth and color pyramids as well as vertex and normal pyramids
          */
         struct FrameData {
-            std::vector<GpuMat> depth_pyramid;
-            std::vector<GpuMat> smoothed_depth_pyramid;
-            std::vector<GpuMat> color_pyramid;
+            std::vector<cv::UMat> depth_pyramid;
+            std::vector<cv::UMat> smoothed_depth_pyramid;
+            std::vector<cv::UMat> color_pyramid;
 
-            std::vector<GpuMat> vertex_pyramid;
-            std::vector<GpuMat> normal_pyramid;
+            std::vector<cv::UMat> vertex_pyramid;
+            std::vector<cv::UMat> normal_pyramid;
 
             explicit FrameData(const size_t pyramid_height) :
                     depth_pyramid(pyramid_height), smoothed_depth_pyramid(pyramid_height),
@@ -225,9 +235,9 @@ namespace kinectfusion {
          * Consists of depth, smoothed depth and color pyramids as well as vertex and normal pyramids
          */
         struct ModelData {
-            std::vector<GpuMat> vertex_pyramid;
-            std::vector<GpuMat> normal_pyramid;
-            std::vector<GpuMat> color_pyramid;
+            std::vector<cv::UMat> vertex_pyramid;
+            std::vector<cv::UMat> normal_pyramid;
+            std::vector<cv::UMat> color_pyramid;
 
             ModelData(const size_t pyramid_height, const CameraParameters camera_parameters) :
                     vertex_pyramid(pyramid_height), normal_pyramid(pyramid_height),
@@ -235,17 +245,17 @@ namespace kinectfusion {
             {
                 for (size_t level = 0; level < pyramid_height; ++level) {
                     vertex_pyramid[level] =
-                            cv::cuda::createContinuous(camera_parameters.level(level).image_height,
-                                                       camera_parameters.level(level).image_width,
-                                                       CV_32FC3);
+                            cv::UMat(cv::Size(camera_parameters.level(level).image_height, 
+                                              camera_parameters.level(level).image_width),
+                                              CV_32FC3);
                     normal_pyramid[level] =
-                            cv::cuda::createContinuous(camera_parameters.level(level).image_height,
-                                                       camera_parameters.level(level).image_width,
-                                                       CV_32FC3);
+                            cv::UMat(cv::Size(camera_parameters.level(level).image_height, 
+                                              camera_parameters.level(level).image_width),
+                                              CV_32FC3);
                     color_pyramid[level] =
-                            cv::cuda::createContinuous(camera_parameters.level(level).image_height,
-                                                       camera_parameters.level(level).image_width,
-                                                       CV_8UC3);
+                            cv::UMat(cv::Size(camera_parameters.level(level).image_height, 
+                                              camera_parameters.level(level).image_width),
+                                              CV_8UC3);
                     vertex_pyramid[level].setTo(0);
                     normal_pyramid[level].setTo(0);
                 }
@@ -284,14 +294,14 @@ namespace kinectfusion {
          *
          */
         struct VolumeData {
-            GpuMat tsdf_volume; //short2
-            GpuMat color_volume; //uchar4
+            cv::UMat tsdf_volume; //short2
+            cv::UMat color_volume; //uchar4
             int3 volume_size;
             float voxel_scale;
 
             VolumeData(const int3 _volume_size, const float _voxel_scale) :
-                    tsdf_volume(cv::cuda::createContinuous(_volume_size.y * _volume_size.z, _volume_size.x, CV_16SC2)),
-                    color_volume(cv::cuda::createContinuous(_volume_size.y * _volume_size.z, _volume_size.x, CV_8UC3)),
+                    tsdf_volume(cv::UMat(cv::Size(_volume_size.y * _volume_size.z, _volume_size.x), CV_16SC2)),
+                    color_volume(cv::UMat(cv::Size(_volume_size.y * _volume_size.z, _volume_size.x), CV_8UC3)),
                     volume_size(_volume_size), voxel_scale(_voxel_scale)
             {
                 tsdf_volume.setTo(0);
@@ -310,9 +320,9 @@ namespace kinectfusion {
          *
          */
         struct CloudData {
-            GpuMat vertices;
-            GpuMat normals;
-            GpuMat color;
+            cv::UMat vertices;
+            cv::UMat normals;
+            cv::UMat color;
 
             cv::Mat host_vertices;
             cv::Mat host_normals;
@@ -322,9 +332,9 @@ namespace kinectfusion {
             int host_point_num;
 
             explicit CloudData(const int max_number) :
-                    vertices{cv::cuda::createContinuous(1, max_number, CV_32FC3)},
-                    normals{cv::cuda::createContinuous(1, max_number, CV_32FC3)},
-                    color{cv::cuda::createContinuous(1, max_number, CV_8UC3)},
+                    vertices{cv::UMat(cv::Size(1, max_number), CV_32FC3)},
+                    normals{cv::UMat(cv::Size(1, max_number), CV_32FC3)},
+                    color{cv::UMat(cv::Size(1, max_number), CV_8UC3)},
                     host_vertices{}, host_normals{}, host_color{}, point_num{nullptr}, host_point_num{}
             {
                 vertices.setTo(0.f);
@@ -341,9 +351,9 @@ namespace kinectfusion {
 
             void download()
             {
-                vertices.download(host_vertices);
-                normals.download(host_normals);
-                color.download(host_color);
+                vertices.copyTo(host_vertices);
+                normals.copyTo(host_normals);
+                color.copyTo(host_color);
 
                 cudaMemcpy(&host_point_num, point_num, sizeof(int), cudaMemcpyDeviceToHost);
             }
@@ -359,32 +369,32 @@ namespace kinectfusion {
          *
          */
         struct MeshData {
-            GpuMat occupied_voxel_ids_buffer;
-            GpuMat number_vertices_buffer;
-            GpuMat vertex_offsets_buffer;
-            GpuMat triangle_buffer;
+            cv::UMat occupied_voxel_ids_buffer;
+            cv::UMat number_vertices_buffer;
+            cv::UMat vertex_offsets_buffer;
+            cv::UMat triangle_buffer;
 
-            GpuMat occupied_voxel_ids;
-            GpuMat number_vertices;
-            GpuMat vertex_offsets;
+            cv::UMat occupied_voxel_ids;
+            cv::UMat number_vertices;
+            cv::UMat vertex_offsets;
 
             explicit MeshData(const int buffer_size):
-                    occupied_voxel_ids_buffer{cv::cuda::createContinuous(1, buffer_size, CV_32SC1)},
-                    number_vertices_buffer{cv::cuda::createContinuous(1, buffer_size, CV_32SC1)},
-                    vertex_offsets_buffer{cv::cuda::createContinuous(1, buffer_size, CV_32SC1)},
-                    triangle_buffer{cv::cuda::createContinuous(1, buffer_size * 3, CV_32FC3)},
+                    occupied_voxel_ids_buffer{cv::UMat(cv::Size(1, buffer_size), CV_32SC1)},
+                    number_vertices_buffer{cv::UMat(cv::Size(1, buffer_size), CV_32SC1)},
+                    vertex_offsets_buffer{cv::UMat(cv::Size(1, buffer_size), CV_32SC1)},
+                    triangle_buffer{cv::UMat(cv::Size(1, buffer_size * 3), CV_32FC3)},
                     occupied_voxel_ids{}, number_vertices{}, vertex_offsets{}
             { }
 
-            void create_view(const int length)
-            {
-                occupied_voxel_ids = GpuMat(1, length, CV_32SC1, occupied_voxel_ids_buffer.ptr<int>(0),
-                                            occupied_voxel_ids_buffer.step);
-                number_vertices = GpuMat(1, length, CV_32SC1, number_vertices_buffer.ptr<int>(0),
-                                         number_vertices_buffer.step);
-                vertex_offsets = GpuMat(1, length, CV_32SC1, vertex_offsets_buffer.ptr<int>(0),
-                                        vertex_offsets_buffer.step);
-            }
+            // void create_view(const int length)
+            // {
+            //     occupied_voxel_ids = cv::UMat(cv::Size(1, length), CV_32SC1, occupied_voxel_ids_buffer.ptr<int>(0),
+            //                                 occupied_voxel_ids_buffer.step);
+            //     number_vertices = cv::UMat(cv::Size(1, length), CV_32SC1, number_vertices_buffer.ptr<int>(0),
+            //                              number_vertices_buffer.step);
+            //     vertex_offsets = cv::UMat(cv::Size(1, length), CV_32SC1, vertex_offsets_buffer.ptr<int>(0),
+            //                             vertex_offsets_buffer.step);
+            // }
         };
     }
 }

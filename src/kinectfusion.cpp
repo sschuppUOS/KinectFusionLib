@@ -4,8 +4,9 @@
 #include <kinectfusion.h>
 
 #include <fstream>
-
-using cv::cuda::GpuMat;
+#include <iostream>
+#include <opencv2/highgui.hpp>
+#include <chrono>
 
 namespace kinectfusion {
 
@@ -25,6 +26,8 @@ namespace kinectfusion {
 
     bool Pipeline::process_frame(const cv::Mat_<float>& depth_map, const cv::Mat_<cv::Vec3b>& color_map)
     {
+        // auto t1 = std::chrono::high_resolution_clock::now();
+
         // STEP 1: Surface measurement
         internal::FrameData frame_data = internal::surface_measurement(depth_map, camera_parameters,
                                                                        configuration.num_levels,
@@ -32,9 +35,14 @@ namespace kinectfusion {
                                                                        configuration.bfilter_kernel_size,
                                                                        configuration.bfilter_color_sigma,
                                                                        configuration.bfilter_spatial_sigma);
-        frame_data.color_pyramid[0].upload(color_map);
+        // auto t2 = std::chrono::high_resolution_clock::now();
 
-        // STEP 2: Pose estimation
+        // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>( t2 - t1 ).count();
+
+        // std::cout << duration << std::endl;
+        color_map.copyTo(frame_data.color_pyramid[0]);
+        
+        // // STEP 2: Pose estimation
         bool icp_success { true };
         if (frame_id > 0) { // Do not perform ICP for the very first frame
             icp_success = internal::pose_estimation(current_pose, frame_data, model_data, camera_parameters,
@@ -42,28 +50,32 @@ namespace kinectfusion {
                                                     configuration.distance_threshold, configuration.angle_threshold,
                                                     configuration.icp_iterations);
         }
-        if (!icp_success)
+        if (!icp_success) {
+            std::cout << "icp_error" << std::endl;
             return false;
+        }
+
+        std::cout << "icp_success" << std::endl;
 
         poses.push_back(current_pose);
 
         // STEP 3: Surface reconstruction
-        internal::cuda::surface_reconstruction(frame_data.depth_pyramid[0], frame_data.color_pyramid[0],
+        internal::opencl::surface_reconstruction(frame_data.depth_pyramid[0], frame_data.color_pyramid[0],
                                                volume, camera_parameters, configuration.truncation_distance,
                                                current_pose.inverse());
 
-        // Step 4: Surface prediction
-        for (int level = 0; level < configuration.num_levels; ++level)
-            internal::cuda::surface_prediction(volume, model_data.vertex_pyramid[level],
-                                               model_data.normal_pyramid[level],
-                                               model_data.color_pyramid[level],
-                                               camera_parameters.level(level), configuration.truncation_distance,
-                                               current_pose);
+        // // Step 4: Surface prediction
+        // for (int level = 0; level < configuration.num_levels; ++level)
+        //     internal::cuda::surface_prediction(volume, model_data.vertex_pyramid[level],
+        //                                        model_data.normal_pyramid[level],
+        //                                        model_data.color_pyramid[level],
+        //                                        camera_parameters.level(level), configuration.truncation_distance,
+        //                                        current_pose);
 
-        if (configuration.use_output_frame) // Not using the output will speed up the processing
-            model_data.color_pyramid[0].download(last_model_frame);
+        // if (configuration.use_output_frame) // Not using the output will speed up the processing
+        //     model_data.color_pyramid[0].download(last_model_frame);
 
-        ++frame_id;
+        // ++frame_id;
 
         return true;
     }
@@ -83,17 +95,18 @@ namespace kinectfusion {
         return poses;
     }
 
-    PointCloud Pipeline::extract_pointcloud() const
-    {
-        PointCloud cloud_data = internal::cuda::extract_points(volume, configuration.pointcloud_buffer_size);
-        return cloud_data;
-    }
+    // PointCloud Pipeline::extract_pointcloud() const
+    // {
+    //     // PointCloud cloud_data = internal::cuda::extract_points(volume, configuration.pointcloud_buffer_size);
+    //     // return cloud_data;
+    //     return 1;
+    // }
 
-    SurfaceMesh Pipeline::extract_mesh() const
-    {
-        SurfaceMesh surface_mesh = internal::cuda::marching_cubes(volume, configuration.triangles_buffer_size);
-        return surface_mesh;
-    }
+    // SurfaceMesh Pipeline::extract_mesh() const
+    // {
+    //     SurfaceMesh surface_mesh = internal::cuda::marching_cubes(volume, configuration.triangles_buffer_size);
+    //     return surface_mesh;
+    // }
 
     void export_ply(const std::string& filename, const PointCloud& point_cloud)
     {
@@ -156,4 +169,15 @@ namespace kinectfusion {
             file_out << 3 << " " << t_idx + 1 << " " << t_idx << " " << t_idx + 2 << std::endl;
         }
     }
+    // namespace internal {
+    //     namespace opencl {
+    //         cl::Platform platform;
+    //         cl::Device device;
+
+    //         void setDeviceInfo(cl::Platform platform, cl::Device device) {
+    //             m_platform = platform;
+    //             m_device = device;
+    //         }
+    //     }
+    // }
 }

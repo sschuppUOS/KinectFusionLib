@@ -28,9 +28,9 @@ using blockIdx = struct { int x; int y; int z; };
 #include <CL/cl.h>
 #endif
 
-// using cv::cuda::PtrStep;
-// using cv::cuda::PtrStepSz;
-// using cv::cuda::GpuMat;
+using cv::cuda::PtrStep;
+using cv::cuda::PtrStepSz;
+using cv::cuda::GpuMat;
 using cv::UMat;
 
 using Vec3fda = Eigen::Matrix<float, 3, 1, Eigen::DontAlign>;
