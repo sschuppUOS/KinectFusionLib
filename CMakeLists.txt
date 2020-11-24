@@ -12,17 +12,17 @@ set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 #                 Dependencies
 # ------------------------------------------------
 ## CUDA
-find_package(CUDA 11.0 REQUIRED)
+find_package(CUDA 10.0 REQUIRED)
 IF (CUDA_FOUND)
     include_directories("${CUDA_INCLUDE_DIRS}")
     # Optional: Specify the arch of your CUDA hardware here
-    SET(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3;-std=c++11 -gencode arch=compute_75,code=sm_75)
+    SET(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3;-std=c++11 -gencode arch=compute_30,code=sm_30)
 ENDIF ()
 
 ## OpenCV
 # Optional: Set OpenCV_DIR if you want to use a custom version of OpenCV
 # SET("OpenCV_DIR" "/opt/opencv/usr/local/share/OpenCV")
-find_package(OpenCV 4.0 REQUIRED)
+find_package(OpenCV 4.2 REQUIRED)
 if (OpenCV_INCLUDE_DIRS)
     include_directories("${OpenCV_INCLUDE_DIRS}")
     link_directories(${OpenCV_DIR}/lib)
@@ -47,3 +47,31 @@ file(GLOB KinectFusion_SRCS "${PROJECT_SOURCE_DIR}/cuda/*.cu" "${PROJECT_SOURCE_
 
 cuda_add_library(KinectFusion STATIC "${KinectFusion_SRCS}")
 target_link_libraries(KinectFusion "${OpenCV_LIBS}")
+
+add_library(KinectFusionLib SHARED ${KinectFusion_SRCS})
+
+#install(TARGETS KinectFusionLib DESTINATION lib)
+
+install(TARGETS KinectFusionLib 
+        EXPORT KinectFusionLibConfig
+        ARCHIVE DESTINATION lib}
+        LIBRARY DESTINATION lib}
+        RUNTIME DESTINATION lib)
+
+export(TARGETS KinectFusionLib
+        NAMESPACE kinectfusion::
+        FILE "${CMAKE_CURRENT_BINARY_DIR}/KinectFusionLibConfig.cmake")
+
+install(EXPORT KinectFusionLibConfig
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/KinectFusionLib/cmake"
+        NAMESPACE kinectfusion::)
+
+export(TARGETS KinectFusionLib
+        NAMESPACE kinectfusion::internal::cuda
+        FILE "${CMAKE_CURRENT_BINARY_DIR}/KinectFusionLibConfig.cmake")
+
+install(EXPORT KinectFusionLibConfig
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/KinectFusionLib/cmake"
+        NAMESPACE kinectfusion::internal::cuda)
+
+install(FILES ${PROJECT_INCLUDE_DIR}/kinectfusion.h DESTINATION include)
