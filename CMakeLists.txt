@@ -5,18 +5,22 @@ project(KinectFusionLib)
 # Use modern C++
 set(CMAKE_CXX_STANDARD 14)
 
-# Setting output paths
-set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # ------------------------------------------------
 #                 Dependencies
 # ------------------------------------------------
+
 ## CUDA
 find_package(CUDA 10.0 REQUIRED)
 IF (CUDA_FOUND)
     include_directories("${CUDA_INCLUDE_DIRS}")
     # Optional: Specify the arch of your CUDA hardware here
-    SET(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3;-std=c++11 -gencode arch=compute_30,code=sm_30)
+    SET(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3;-std=c++11 -gencode arch=compute_52,code=sm_52)
 ENDIF ()
 
 ## OpenCV
@@ -33,45 +37,68 @@ find_package(Eigen3 REQUIRED)
 if (EIGEN3_INCLUDE_DIR)
     include_directories("${EIGEN3_INCLUDE_DIR}")
 endif (EIGEN3_INCLUDE_DIR)
+
+
+# ------------------------------------------------
+#                     Library
 # ------------------------------------------------
 
-SET(CUDA_PROPAGATE_HOST_FLAGS OFF)
+set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Weffc++")
 
-# Targets
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 set(PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src)
-
-include_directories("${PROJECT_INCLUDE_DIR}" "${PROJECT_SOURCE_DIR}/cuda/include")
 file(GLOB KinectFusion_SRCS "${PROJECT_SOURCE_DIR}/cuda/*.cu" "${PROJECT_SOURCE_DIR}/*.cpp")
 
-cuda_add_library(KinectFusion STATIC "${KinectFusion_SRCS}")
-target_link_libraries(KinectFusion "${OpenCV_LIBS}")
+include_directories("${PROJECT_INCLUDE_DIR}" "${PROJECT_SOURCE_DIR}/cuda/include")
 
-add_library(KinectFusionLib SHARED ${KinectFusion_SRCS})
+cuda_add_library(kinfulib SHARED "${KinectFusion_SRCS}")
 
-#install(TARGETS KinectFusionLib DESTINATION lib)
+add_library(kinfulib SHARED ${KinectFusion_SRCS})
+target_link_libraries(kinfulib ${OpenCV_LIBS} ${CUDA_LIBRARIES})
 
-install(TARGETS KinectFusionLib 
-        EXPORT KinectFusionLibConfig
-        ARCHIVE DESTINATION lib}
-        LIBRARY DESTINATION lib}
-        RUNTIME DESTINATION lib)
+cuda_add_library(kinfulib_static STATIC "${KinectFusion_SRCS}")
 
-export(TARGETS KinectFusionLib
+add_library(kinfulib_static STATIC ${KinectFusion_SRCS})
+target_link_libraries(kinfulib_static ${OpenCV_LIBS} ${CUDA_LIBRARIES})
+
+
+# ------------------------------------------------
+#                 install Library
+# ------------------------------------------------
+
+install(TARGETS kinfulib kinfulib_static
+        EXPORT kinfulibTargets
+        ARCHIVE DESTINATION lib/statiac
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin)
+
+install(DIRECTORY include/sialib
+        DESTINATION include ${CMAKE_INSTALL_INCLUDEDIR})
+
+
+# ------------------------------------------------
+#               install Cmake stuff
+# ------------------------------------------------
+
+include(CMakePackageConfigHelpers)
+
+set(INCLUDE_INSTALL_DIR include/)
+set(LIB_INSTALL_DIR lib/)
+set(SYSCONFIG_INSTALL_DIR etc/hyperlib/)
+
+install(EXPORT kinfulibTargets
+        FILE kinfulibTargets.cmake
         NAMESPACE kinectfusion::
-        FILE "${CMAKE_CURRENT_BINARY_DIR}/KinectFusionLibConfig.cmake")
+        DESTINATION ${LIB_INSTALL_DIR}/cmake/kinfulib)
 
-install(EXPORT KinectFusionLibConfig
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/KinectFusionLib/cmake"
-        NAMESPACE kinectfusion::)
+configure_package_config_file(KinfulibConfig.cmake
+                             ${CMAKE_CURRENT_BINARY_DIR}/KinfulibConfig.cmake
+                             INSTALL_DESTINATION ${LIB_INSTALL_DIR}/cmake/hyperlib)
 
-export(TARGETS KinectFusionLib
-        NAMESPACE kinectfusion::internal::cuda
-        FILE "${CMAKE_CURRENT_BINARY_DIR}/KinectFusionLibConfig.cmake")
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/KinfulibConfig.cmake
+                                CONPATIBILITY SameMajorVerseion
+                                VERSION 0.0.1)
 
-install(EXPORT KinectFusionLibConfig
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/KinectFusionLib/cmake"
-        NAMESPACE kinectfusion::internal::cuda)
-
-install(FILES ${PROJECT_INCLUDE_DIR}/kinectfusion.h DESTINATION include)
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/KinfulibConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/KinfulibConfigVersion.cmake
+        DESTINATION ${LIB_INSTALL_DIR}/cmake/kinfulib)
