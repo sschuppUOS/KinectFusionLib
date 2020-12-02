@@ -50,14 +50,14 @@ set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 set(PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src)
 file(GLOB KinectFusion_SRCS "${PROJECT_SOURCE_DIR}/cuda/*.cu" "${PROJECT_SOURCE_DIR}/*.cpp")
 
-include_directories("${PROJECT_INCLUDE_DIR}" "${PROJECT_SOURCE_DIR}/cuda/include")
+include_directories("${PROJECT_INCLUDE_DIR}" "${PROJECT_SOURCE_DIR}/cuda/include" "${PROJECT_BINARY_DIR}")
 
-cuda_add_library(kinfulib SHARED "${KinectFusion_SRCS}")
+cuda_add_library(KinectFusion SHARED "${KinectFusion_SRCS}")
 
 add_library(kinfulib SHARED ${KinectFusion_SRCS})
 target_link_libraries(kinfulib ${OpenCV_LIBS} ${CUDA_LIBRARIES})
 
-cuda_add_library(kinfulib_static STATIC "${KinectFusion_SRCS}")
+cuda_add_library(KinectFusion_static STATIC "${KinectFusion_SRCS}")
 
 add_library(kinfulib_static STATIC ${KinectFusion_SRCS})
 target_link_libraries(kinfulib_static ${OpenCV_LIBS} ${CUDA_LIBRARIES})
@@ -69,11 +69,11 @@ target_link_libraries(kinfulib_static ${OpenCV_LIBS} ${CUDA_LIBRARIES})
 
 install(TARGETS kinfulib kinfulib_static
         EXPORT kinfulibTargets
-        ARCHIVE DESTINATION lib/statiac
+        ARCHIVE DESTINATION lib/static
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
 
-install(DIRECTORY include/sialib
+install(DIRECTORY include/
         DESTINATION include ${CMAKE_INSTALL_INCLUDEDIR})
 
 
@@ -85,20 +85,20 @@ include(CMakePackageConfigHelpers)
 
 set(INCLUDE_INSTALL_DIR include/)
 set(LIB_INSTALL_DIR lib/)
-set(SYSCONFIG_INSTALL_DIR etc/hyperlib/)
+set(SYSCONFIG_INSTALL_DIR etc/kinfulib/)
 
 install(EXPORT kinfulibTargets
         FILE kinfulibTargets.cmake
-        NAMESPACE kinectfusion::
+        NAMESPACE kinfulib::
         DESTINATION ${LIB_INSTALL_DIR}/cmake/kinfulib)
 
-configure_package_config_file(KinfulibConfig.cmake
-                             ${CMAKE_CURRENT_BINARY_DIR}/KinfulibConfig.cmake
+configure_package_config_file(kinfulibConfig.cmake
+                             ${CMAKE_CURRENT_BINARY_DIR}/kinfulibConfig.cmake
                              INSTALL_DESTINATION ${LIB_INSTALL_DIR}/cmake/hyperlib)
 
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/KinfulibConfig.cmake
-                                CONPATIBILITY SameMajorVerseion
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/kinfulibConfig.cmake
+                                COMPATIBILITY SameMajorVersion
                                 VERSION 0.0.1)
 
-INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/KinfulibConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/KinfulibConfigVersion.cmake
-        DESTINATION ${LIB_INSTALL_DIR}/cmake/kinfulib)
+# INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/kinfulibConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/kinfulibConfigVersion.cmake
+#         DESTINATION ${LIB_INSTALL_DIR}/cmake/kinfulib)
