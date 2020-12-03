@@ -20,7 +20,7 @@ find_package(CUDA 10.0 REQUIRED)
 IF (CUDA_FOUND)
     include_directories("${CUDA_INCLUDE_DIRS}")
     # Optional: Specify the arch of your CUDA hardware here
-    SET(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3;-std=c++11 -gencode arch=compute_52,code=sm_52 --expt-relaxed-constexpr)
+    SET(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3;-std=c++11 -gencode arch=compute_52,code=sm_52 --expt-relaxed-constexpr -Wno-deprecated-declarations)
 ENDIF ()
 
 ## OpenCV
@@ -52,22 +52,22 @@ file(GLOB KinectFusion_SRCS "${PROJECT_SOURCE_DIR}/cuda/*.cu" "${PROJECT_SOURCE_
 
 include_directories("${PROJECT_INCLUDE_DIR}" "${PROJECT_SOURCE_DIR}/cuda/include" "${PROJECT_BINARY_DIR}")
 
-cuda_add_library(KinectFusion SHARED "${KinectFusion_SRCS}")
+cuda_add_library(KinectFusionCuda SHARED "${KinectFusion_SRCS}")
 
 add_library(kinfulib SHARED ${KinectFusion_SRCS})
-target_link_libraries(kinfulib ${OpenCV_LIBS} ${CUDA_LIBRARIES})
+target_link_libraries(kinfulib ${OpenCV_LIBS} ${CUDA_LIBRARIES} KinectFusionCuda)
 
-cuda_add_library(KinectFusion_static STATIC "${KinectFusion_SRCS}")
+cuda_add_library(KinectFusionCuda_static STATIC "${KinectFusion_SRCS}")
 
 add_library(kinfulib_static STATIC ${KinectFusion_SRCS})
-target_link_libraries(kinfulib_static ${OpenCV_LIBS} ${CUDA_LIBRARIES})
+target_link_libraries(kinfulib_static ${OpenCV_LIBS} ${CUDA_LIBRARIES} KinectFusionCuda_static)
 
 
 # ------------------------------------------------
 #                 install Library
 # ------------------------------------------------
 
-install(TARGETS kinfulib kinfulib_static
+install(TARGETS kinfulib kinfulib_static KinectFusionCuda KinectFusionCuda_static
         EXPORT kinfulibTargets
         ARCHIVE DESTINATION lib/static
         LIBRARY DESTINATION lib
