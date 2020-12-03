@@ -57,17 +57,17 @@ cuda_add_library(KinectFusionCuda SHARED "${KinectFusion_SRCS}")
 add_library(kinfulib SHARED ${KinectFusion_SRCS})
 target_link_libraries(kinfulib ${OpenCV_LIBS} ${CUDA_LIBRARIES} KinectFusionCuda)
 
-cuda_add_library(KinectFusionCuda_static STATIC "${KinectFusion_SRCS}")
+# cuda_add_library(KinectFusionCuda_static STATIC "${KinectFusion_SRCS}")
 
 add_library(kinfulib_static STATIC ${KinectFusion_SRCS})
-target_link_libraries(kinfulib_static ${OpenCV_LIBS} ${CUDA_LIBRARIES} KinectFusionCuda_static)
+target_link_libraries(kinfulib_static ${OpenCV_LIBS} ${CUDA_LIBRARIES} KinectFusionCuda)
 
 
 # ------------------------------------------------
 #                 install Library
 # ------------------------------------------------
 
-install(TARGETS kinfulib kinfulib_static KinectFusionCuda KinectFusionCuda_static
+install(TARGETS kinfulib kinfulib_static KinectFusionCuda
         EXPORT kinfulibTargets
         ARCHIVE DESTINATION lib/static
         LIBRARY DESTINATION lib
